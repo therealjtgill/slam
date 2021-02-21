@@ -1,7 +1,7 @@
 import numpy as np
 import pygame
 import sys
-from vehicle import Vehicle
+from vehicle_controller import VehicleController
 from vehicle_dynamics import VehicleDynamics
 
 def linear_params(in_min, in_max, out_min, out_max):
@@ -84,7 +84,8 @@ def main():
     # sys.exit()
     vehicle_viz = VehicleViz((0, 0, 255), (0, 0), screen_converter)
     vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], 0.5, 1)
-    vehicle_controller = Vehicle
+    vehicle_controller = VehicleController(1, 0, 0.1, -5, 5)
+    vehicle_controller.setWaypoint([30, 10])
 
     running = True
     while running:
@@ -93,8 +94,9 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-
-        vehicle_viz.updateWorldPosition((np.random.rand(2)*2 - 1)*100)
+        accel_cmd = vehicle_controller.pursueWaypoint(vehicle_dynamics.pos, vehicle_dynamics.vel)
+        vehicle_dynamics.update(accel_cmd)
+        vehicle_viz.updateWorldPosition(vehicle_dynamics.pos)
         pygame.draw.circle(screen, vehicle_viz.color, vehicle_viz.getScreenPosition(), 10, 1)
         pygame.display.flip()
 

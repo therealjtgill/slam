@@ -6,10 +6,11 @@ class VehicleDynamics:
         self.vel = np.array(vel_init)
         self.drag = drag
         self.mass = mass
+        self.dt = dt
 
     def update(self, ext_force):
-        self.force = -1*drag*self.vel + ext_force
+        self.force = -1*self.drag*self.vel + ext_force
 
         self.accel = self.force/self.mass
-        self.pos = self.pos + self.vel*dt + 0.5*self.accel*dt*dt
-        self.vel = self.vel + self.accel*dt
+        self.pos = self.pos + self.vel*self.dt + 0.5*self.accel*self.dt*self.dt
+        self.vel = self.vel + self.accel*self.dt

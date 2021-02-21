@@ -15,8 +15,9 @@ class PID:
         self.error_sum += error
         i_term = self.ki*self.error_sum
         i_term = np.clip(i_term, self.out_min, self.out_max)
-        d_term = self.kd*(error - self.error_prev)
+        d_term = self.kd*(error - self.prev_error)
         command = self.kp*error + i_term + d_term
         command = np.clip(command, self.out_min, self.out_max)
+        self.prev_error = error
 
         return command
