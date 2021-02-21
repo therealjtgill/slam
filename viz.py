@@ -82,7 +82,9 @@ def main():
 
     screen_converter = WorldToScreen(width, height, -100, 100, -100, 100)
     # sys.exit()
-    vehicle = VehicleViz((0, 0, 255), (0, 0), screen_converter)
+    vehicle_viz = VehicleViz((0, 0, 255), (0, 0), screen_converter)
+    vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], 0.5, 1)
+    vehicle_controller = Vehicle
 
     running = True
     while running:
@@ -91,9 +93,9 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        # pygame.draw.circle(screen, (0, 0, 255), (100, 100), 10, 1)
-        vehicle.updateWorldPosition((np.random.rand(2)*2 - 1)*100)
-        pygame.draw.circle(screen, vehicle.color, vehicle.getScreenPosition(), 10, 1)
+
+        vehicle_viz.updateWorldPosition((np.random.rand(2)*2 - 1)*100)
+        pygame.draw.circle(screen, vehicle_viz.color, vehicle_viz.getScreenPosition(), 10, 1)
         pygame.display.flip()
 
 if __name__ == "__main__":
