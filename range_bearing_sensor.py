@@ -18,7 +18,7 @@ class RangeBearingSensor:
 
    def getMeasurements(self, true_sensor_pos, true_landmarks):
       meas_landmarks = [
-         np.random.normal(l, self.Q_meas) for l in true_landmarks
+         np.random.multivariate_normal(l, self.Q_meas) for l in true_landmarks
          if ((np.linalg.norm(true_sensor_pos - l) <= self.R_max) and 
             (np.linalg.norm(true_sensor_pos - l) >= self.R_min))
       ]

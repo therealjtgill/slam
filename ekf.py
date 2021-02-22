@@ -50,6 +50,8 @@ class EKF:
    def update(self, accel_input, pos_meas=None, accel_meas=None):
       self.H = np.zeros((6, 6), dtype=np.float32)
       meas_vec = np.zeros(6)
+      # Change observation matrix and observation vector based on the
+      # availability of measurements.
       if pos_meas is not None:
          self.H[0, 0] = 1
          self.H[1, 1] = 1

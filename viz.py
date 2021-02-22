@@ -3,6 +3,7 @@ import pygame
 import sys
 from acceleration_sensor import AccelerationSensor
 from ekf import EKF
+from ekf_slam import EKFSlam
 from vehicle_controller import VehicleController
 from vehicle_dynamics import VehicleDynamics
 
@@ -84,8 +85,10 @@ def main():
 
     screen_converter = WorldToScreen(width, height, -100, 100, -100, 100)
     # sys.exit()
+    mass = 1
+    drag = 0.5
     vehicle_viz = VehicleViz((0, 0, 255), (0, 0), screen_converter)
-    vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], 0.5, 1)
+    vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], drag, mass)
     vehicle_controller = VehicleController(1, 0.001, 0.1, -5, 5)
     vehicle_controller.setWaypoint([30, 10])
 
@@ -93,6 +96,13 @@ def main():
     R = 0.4*np.eye(6)
     accelerometer = AccelerationSensor(0.1*np.eye(2))
     kf = EKF(1, 0.5, Q, R)
+    num_landmarks = 10
+    Q_map = 0.2*np.eye(6 + num_landmarks)
+    Q_map[6:, 6:] = 0
+    R_map = np.zeros((6 + num_landmarks, 6 + num_landmarks))
+    R_map[0:6, 0:6] = 0.4*np.eye(6)
+    R_map[6:, 6:] = 0.5*np.eye(num_landmarks)
+    ekf_slam = EKFSlam(mass, drag, Q_map, R_map, num_landmarks)
 
     running = True
     counter = 0
@@ -114,10 +124,10 @@ def main():
         # print("accel meas:", accel_meas)
         predicted_state = kf.update(accel_cmd, pos_meas, accel_meas)
         pos_hat = predicted_state[0:2]
-        pos_cov = kf.P[0:2, 0:2]
-        vel_cov = kf.P[2:4, 2:4]
-        acc_cov = kf.P[4:6, 4:6]
-        print(pos_cov)
+        # pos_cov = kf.P[0:2, 0:2]
+        # vel_cov = kf.P[2:4, 2:4]
+        # acc_cov = kf.P[4:6, 4:6]
+        # print(pos_cov)
         # print(counter*0.001)
         screen_pos_hat = screen_converter.convertWorldToScreen(*pos_hat)
         pygame.draw.circle(screen, (255, 0, 0), screen_pos_hat, 6, 1)
