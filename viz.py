@@ -4,6 +4,7 @@ import sys
 from acceleration_sensor import AccelerationSensor
 from ekf import EKF
 from ekf_slam import EKFSlam
+from range_bearing_sensor import RangeBearingSensor
 from vehicle_controller import VehicleController
 from vehicle_dynamics import VehicleDynamics
 
@@ -60,7 +61,7 @@ class WorldToScreen:
             ]
         )
 
-class VehicleViz:
+class DotViz:
     def __init__(
         self,
         color,
@@ -82,27 +83,45 @@ def main():
     (width, height) = (800, 600)
     screen = pygame.display.set_mode((width, height))
     pygame.display.flip()
+    world_x_bounds = [-100, 100]
+    world_y_bounds = [-100, 100]
 
-    screen_converter = WorldToScreen(width, height, -100, 100, -100, 100)
-    # sys.exit()
+    screen_converter = WorldToScreen(
+        width,
+        height,
+        world_x_bounds[0],
+        world_x_bounds[1],
+        world_y_bounds[0],
+        world_y_bounds[1]
+    )
+
     mass = 1
     drag = 0.5
-    vehicle_viz = VehicleViz((0, 0, 255), (0, 0), screen_converter)
+    num_landmarks = 10
+    vehicle_viz = DotViz((0, 0, 255), (0, 0), screen_converter)
     vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], drag, mass)
     vehicle_controller = VehicleController(1, 0.001, 0.1, -5, 5)
     vehicle_controller.setWaypoint([30, 10])
+
+    landmark_vizs = [
+        DotViz(
+            (0, 127, 180),
+            ((np.random.rand()*2 - 1)*100, (np.random.rand()*2 - 1)*100),
+            screen_converter
+        ) for _ in range(num_landmarks)
+    ]
 
     Q = 0.2*np.eye(6)
     R = 0.4*np.eye(6)
     accelerometer = AccelerationSensor(0.1*np.eye(2))
     kf = EKF(1, 0.5, Q, R)
-    num_landmarks = 10
-    Q_map = 0.2*np.eye(6 + num_landmarks)
+    Q_map = 0.2*np.eye(6 + 2*num_landmarks)
     Q_map[6:, 6:] = 0
-    R_map = np.zeros((6 + num_landmarks, 6 + num_landmarks))
+    R_map = np.zeros((6 + 2*num_landmarks, 6 + 2*num_landmarks))
     R_map[0:6, 0:6] = 0.4*np.eye(6)
-    R_map[6:, 6:] = 0.5*np.eye(num_landmarks)
+    R_map[6:, 6:] = 0.5*np.eye(2*num_landmarks)
     ekf_slam = EKFSlam(mass, drag, Q_map, R_map, num_landmarks)
+    landmark_sensor = RangeBearingSensor(0.5, 150, 0.9*np.eye(2))
 
     running = True
     counter = 0
@@ -116,23 +135,48 @@ def main():
         accel_cmd = vehicle_controller.pursueWaypoint(vehicle_dynamics.pos, vehicle_dynamics.vel)
         vehicle_dynamics.update(accel_cmd)
         force = vehicle_dynamics.force/vehicle_dynamics.mass - accel_cmd
-        if counter % 100 == 0:
+        if counter % 1000 == 0:
             pos_meas = np.random.multivariate_normal(vehicle_dynamics.pos, 0.3*np.eye(2))
         else:
             pos_meas = None
+        if counter % 1 == 0:
+            landmark_meas = landmark_sensor.getMeasurements(
+                vehicle_dynamics.pos,
+                [l.pos for l in landmark_vizs]
+            )
+            # print(landmark_meas)
+            # print([l.pos for l in landmark_vizs])
+            # sys.exit()
+        else:
+            landmark_meas = None
         accel_meas = accelerometer.getMeasurements(force)
+        predicted_map_and_state = ekf_slam.update(accel_cmd, pos_meas, accel_meas, landmark_meas)
         # print("accel meas:", accel_meas)
         predicted_state = kf.update(accel_cmd, pos_meas, accel_meas)
-        pos_hat = predicted_state[0:2]
-        # pos_cov = kf.P[0:2, 0:2]
+        pos_hat = predicted_map_and_state[0:2]
+        # print(predicted_map_and_state[6:])
+        pos_cov = ekf_slam.P[0:2, 0:2]
         # vel_cov = kf.P[2:4, 2:4]
         # acc_cov = kf.P[4:6, 4:6]
-        # print(pos_cov)
+        print(pos_cov)
         # print(counter*0.001)
         screen_pos_hat = screen_converter.convertWorldToScreen(*pos_hat)
         pygame.draw.circle(screen, (255, 0, 0), screen_pos_hat, 6, 1)
         vehicle_viz.updateWorldPosition(vehicle_dynamics.pos)
         pygame.draw.circle(screen, vehicle_viz.color, vehicle_viz.getScreenPosition(), 10, 1)
+        for landmark in landmark_vizs:
+            pygame.draw.circle(screen, landmark.color, landmark.getScreenPosition(), 4, 1)
+        for i in range(len(predicted_map_and_state[6:])//2):
+            screen_landmark_pos = screen_converter.convertWorldToScreen(
+                *predicted_map_and_state[(6 + 2*i):(6 + 2*i + 2)]
+            )
+            pygame.draw.circle(
+                screen,
+                (200, 120, 0),
+                screen_landmark_pos,
+                3,
+                2
+            )
         pygame.display.flip()
 
 if __name__ == "__main__":

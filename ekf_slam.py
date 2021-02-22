@@ -12,8 +12,8 @@ class EKFSlam:
       self.drag = drag
       self.mass = mass
       self.dt = dt
-      self.Q_proc = Q_proc
-      self.R_meas = R_meas
+      self.Q_proc = np.array(Q_proc)
+      self.R_meas = np.array(R_meas)
       self.num_landmarks = max_num_landmarks
       self.state_size = 6 + 2*self.num_landmarks
 
@@ -93,14 +93,14 @@ class EKFSlam:
       if accel_meas is not None:
          self.H_map[4, 4] = 1
          self.H_map[5, 5] = 1
-         meas_vec[4:] = accel_meas
+         meas_vec[4:6] = accel_meas
       if landmark_meas is not None:
          for lid, pos in landmark_meas.items():
             meas_vec[(6 + 2*lid):(6 + 2*lid + 2)] = pos
             self.H_map[
                (6 + 2*lid):(6 + 2*lid + 2),
                (6 + 2*lid):(6 + 2*lid + 2)
-            ] = 1
+            ] = np.eye(2)
       x_minus = self.propagateState(accel_input)
       P_minus = np.dot(np.dot(self.F_map, self.P), self.F_map.T) + self.Q_proc
       gain_fac = np.linalg.inv(np.dot(np.dot(self.H_map, P_minus), self.H_map.T) + self.R_meas)
