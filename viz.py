@@ -4,6 +4,7 @@ import sys
 from acceleration_sensor import AccelerationSensor
 from ekf import EKF
 from ekf_slam import EKFSlam
+from guidance import Guidance
 from range_bearing_sensor import RangeBearingSensor
 from vehicle_controller import VehicleController
 from vehicle_dynamics import VehicleDynamics
@@ -100,8 +101,9 @@ def main():
     num_landmarks = 10
     vehicle_viz = DotViz((0, 0, 255), (0, 0), screen_converter)
     vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], drag, mass)
-    vehicle_controller = VehicleController(1, 0.001, 0.1, -5, 5)
+    vehicle_controller = VehicleController(1, 0.001, 0.1, -3, 3)
     vehicle_controller.setWaypoint([-30, -10])
+    guidance = Guidance(*world_x_bounds, *world_y_bounds, 0.5)
 
     landmark_vizs = [
         DotViz(
@@ -134,9 +136,13 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+        new_wpt, wpt_pos = guidance.update(pos_hat)
+        if new_wpt:
+            print("New waypoint issued!", wpt_pos)
+            vehicle_controller.setWaypoint(wpt_pos)
         accel_cmd = vehicle_controller.pursueWaypoint(pos_hat, vel_hat)
         vehicle_dynamics.update(accel_cmd)
-        force = vehicle_dynamics.force/vehicle_dynamics.mass# - accel_cmd
+        force = vehicle_dynamics.force/vehicle_dynamics.mass
         if counter % 1000 == 0 and False:
             pos_meas = np.random.multivariate_normal(vehicle_dynamics.pos, 0.3*np.eye(2))
         else:
@@ -157,7 +163,7 @@ def main():
         pos_cov = ekf_slam.P[0:2, 0:2]
         # vel_cov = kf.P[2:4, 2:4]
         # acc_cov = kf.P[4:6, 4:6]
-        print(pos_cov)
+        # print(pos_cov)
         screen_pos_hat = screen_converter.convertWorldToScreen(*pos_hat)
         pygame.draw.circle(screen, (255, 0, 0), screen_pos_hat, 6, 1)
         vehicle_viz.updateWorldPosition(vehicle_dynamics.pos)

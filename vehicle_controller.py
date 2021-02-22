@@ -39,7 +39,6 @@ class VehicleController:
         ]
 
         self.wpt_cmd = np.zeros(2)
-        self.capture_radius = capture_radius
         self.max_speed = max_speed
 
     def computeAccelCommand(self, desired_vel, current_vel):
