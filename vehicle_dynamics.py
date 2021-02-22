@@ -7,6 +7,7 @@ class VehicleDynamics:
         self.drag = drag
         self.mass = mass
         self.dt = dt
+        self.force = np.zeros(2)
 
     def update(self, ext_force):
         self.force = -1*self.drag*self.vel + ext_force

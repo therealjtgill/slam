@@ -5,4 +5,4 @@ class AccelerationSensor:
       self.R_meas = measurement_covariance
 
    def getMeasurements(self, true_accel):
-      return np.random.normal(true_accel, self.R_meas)
+      return np.random.multivariate_normal(true_accel, self.R_meas)

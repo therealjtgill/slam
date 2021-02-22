@@ -1,6 +1,8 @@
 import numpy as np
 import pygame
 import sys
+from acceleration_sensor import AccelerationSensor
+from ekf import EKF
 from vehicle_controller import VehicleController
 from vehicle_dynamics import VehicleDynamics
 
@@ -84,11 +86,18 @@ def main():
     # sys.exit()
     vehicle_viz = VehicleViz((0, 0, 255), (0, 0), screen_converter)
     vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], 0.5, 1)
-    vehicle_controller = VehicleController(1, 0, 0.1, -5, 5)
+    vehicle_controller = VehicleController(1, 0.001, 0.1, -5, 5)
     vehicle_controller.setWaypoint([30, 10])
 
+    Q = 0.2*np.eye(6)
+    R = 0.4*np.eye(6)
+    accelerometer = AccelerationSensor(0.1*np.eye(2))
+    kf = EKF(1, 0.5, Q, R)
+
     running = True
+    counter = 0
     while running:
+        counter += 1
         screen.fill((255, 255, 255))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -96,6 +105,22 @@ def main():
 
         accel_cmd = vehicle_controller.pursueWaypoint(vehicle_dynamics.pos, vehicle_dynamics.vel)
         vehicle_dynamics.update(accel_cmd)
+        force = vehicle_dynamics.force/vehicle_dynamics.mass - accel_cmd
+        if counter % 100 == 0:
+            pos_meas = np.random.multivariate_normal(vehicle_dynamics.pos, 0.3*np.eye(2))
+        else:
+            pos_meas = None
+        accel_meas = accelerometer.getMeasurements(force)
+        # print("accel meas:", accel_meas)
+        predicted_state = kf.update(accel_cmd, pos_meas, accel_meas)
+        pos_hat = predicted_state[0:2]
+        pos_cov = kf.P[0:2, 0:2]
+        vel_cov = kf.P[2:4, 2:4]
+        acc_cov = kf.P[4:6, 4:6]
+        print(pos_cov)
+        # print(counter*0.001)
+        screen_pos_hat = screen_converter.convertWorldToScreen(*pos_hat)
+        pygame.draw.circle(screen, (255, 0, 0), screen_pos_hat, 6, 1)
         vehicle_viz.updateWorldPosition(vehicle_dynamics.pos)
         pygame.draw.circle(screen, vehicle_viz.color, vehicle_viz.getScreenPosition(), 10, 1)
         pygame.display.flip()
