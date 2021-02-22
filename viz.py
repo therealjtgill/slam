@@ -101,7 +101,7 @@ def main():
     vehicle_viz = DotViz((0, 0, 255), (0, 0), screen_converter)
     vehicle_dynamics = VehicleDynamics([0.0, 0.0], [0.0, 0.0], drag, mass)
     vehicle_controller = VehicleController(1, 0.001, 0.1, -5, 5)
-    vehicle_controller.setWaypoint([30, 10])
+    vehicle_controller.setWaypoint([-30, -10])
 
     landmark_vizs = [
         DotViz(
@@ -121,8 +121,10 @@ def main():
     R_map[0:6, 0:6] = 0.4*np.eye(6)
     R_map[6:, 6:] = 0.5*np.eye(2*num_landmarks)
     ekf_slam = EKFSlam(mass, drag, Q_map, R_map, num_landmarks)
-    landmark_sensor = RangeBearingSensor(0.5, 150, 0.9*np.eye(2))
+    landmark_sensor = RangeBearingSensor(0.5, 50, 0.9*np.eye(2))
 
+    pos_hat = np.zeros(2)
+    vel_hat = np.zeros(2)
     running = True
     counter = 0
     while running:
@@ -132,34 +134,30 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        accel_cmd = vehicle_controller.pursueWaypoint(vehicle_dynamics.pos, vehicle_dynamics.vel)
+        accel_cmd = vehicle_controller.pursueWaypoint(pos_hat, vel_hat)
         vehicle_dynamics.update(accel_cmd)
-        force = vehicle_dynamics.force/vehicle_dynamics.mass - accel_cmd
-        if counter % 1000 == 0:
+        force = vehicle_dynamics.force/vehicle_dynamics.mass# - accel_cmd
+        if counter % 1000 == 0 and False:
             pos_meas = np.random.multivariate_normal(vehicle_dynamics.pos, 0.3*np.eye(2))
         else:
             pos_meas = None
-        if counter % 1 == 0:
+        if counter % 10 == 0:
             landmark_meas = landmark_sensor.getMeasurements(
                 vehicle_dynamics.pos,
                 [l.pos for l in landmark_vizs]
             )
-            # print(landmark_meas)
-            # print([l.pos for l in landmark_vizs])
-            # sys.exit()
         else:
             landmark_meas = None
         accel_meas = accelerometer.getMeasurements(force)
         predicted_map_and_state = ekf_slam.update(accel_cmd, pos_meas, accel_meas, landmark_meas)
-        # print("accel meas:", accel_meas)
-        predicted_state = kf.update(accel_cmd, pos_meas, accel_meas)
+        # predicted_state = kf.update(accel_cmd, pos_meas, accel_meas)
         pos_hat = predicted_map_and_state[0:2]
+        vel_hat = predicted_map_and_state[2:4]
         # print(predicted_map_and_state[6:])
         pos_cov = ekf_slam.P[0:2, 0:2]
         # vel_cov = kf.P[2:4, 2:4]
         # acc_cov = kf.P[4:6, 4:6]
         print(pos_cov)
-        # print(counter*0.001)
         screen_pos_hat = screen_converter.convertWorldToScreen(*pos_hat)
         pygame.draw.circle(screen, (255, 0, 0), screen_pos_hat, 6, 1)
         vehicle_viz.updateWorldPosition(vehicle_dynamics.pos)

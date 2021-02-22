@@ -27,7 +27,6 @@ class EKFSlam:
             [0, 0, 0, 0, 0, 1]
          ]
       )
-
       self.F_map = np.eye(self.state_size)
       self.F_map[0:6, 0:6] = F
 
@@ -56,10 +55,11 @@ class EKFSlam:
          dtype=np.float32
       )
 
+      # self.x = np.random.rand(self.state_size
       self.x = np.zeros(self.state_size, dtype=np.float32)
       self.P = 0.3*np.eye(self.state_size, dtype=np.float32)
       # Set uncertainties of landmark positions to big-ish values.
-      self.P[6:, 6:] += 10000
+      self.P[6:, 6:] = 10000*np.eye(self.state_size - 6)
       self.K = np.eye(self.state_size, dtype=np.float32)
 
    def propagateState(self, accel_input):
@@ -83,7 +83,7 @@ class EKFSlam:
       E.g. landmark 0's features appears at index ID 6, 7 in the state vector.
       '''
       self.H_map[:, :] = 0.0
-      meas_vec = np.zeros(self.state_size)
+      meas_vec = np.zeros(self.state_size, dtype=np.float32)
       # Change observation matrix and observation vector based on the
       # availability of measurements.
       if pos_meas is not None:
@@ -101,10 +101,14 @@ class EKFSlam:
                (6 + 2*lid):(6 + 2*lid + 2),
                (6 + 2*lid):(6 + 2*lid + 2)
             ] = np.eye(2)
+            self.H_map[6 + 2*lid, 0] = -1
+            self.H_map[6 + 2*lid + 1, 1] = -1
       x_minus = self.propagateState(accel_input)
       P_minus = np.dot(np.dot(self.F_map, self.P), self.F_map.T) + self.Q_proc
       gain_fac = np.linalg.inv(np.dot(np.dot(self.H_map, P_minus), self.H_map.T) + self.R_meas)
       self.K = np.dot(np.dot(P_minus, self.H_map.T), gain_fac)
-      self.x = x_minus + np.dot(self.K, (meas_vec - np.dot(self.H_map, x_minus)))
+      innovations = meas_vec - np.dot(self.H_map, x_minus)
+      # print("innovations:", innovations, "\n", meas_vec)
+      self.x = x_minus + np.dot(self.K, innovations)
       self.P = np.dot(np.eye(self.state_size) - np.dot(self.K, self.H_map), P_minus)
       return self.x
