@@ -17,11 +17,6 @@ class RangeBearingSensor:
       self.Q_meas = measurement_covariance
 
    def getMeasurements(self, true_sensor_pos, true_landmarks):
-      # for landmark in true_landmarks:
-      #    l = landmark[0:2]
-      #    if (np.linalg.norm(true_sensor_pos - l) <= self.R_max) and 
-      #       (np.linalg.norm(true_sensor_pos - l) >= self.R_min):
-      #       measured_landmark_pos = np.random.normal(l, self.Q_meas)
       meas_landmarks = [
          np.random.normal(l, self.Q_meas) for l in true_landmarks
          if ((np.linalg.norm(true_sensor_pos - l) <= self.R_max) and 
